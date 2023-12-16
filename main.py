@@ -13,8 +13,8 @@ builtin_led = Pin(2, Pin.OUT)
 # ------------------ UTIL FUNCTIONS ------------------
 
 def status():
-    print("Memory currently in use:", gc.mem_alloc(), "bytes")
-    print("Memory currently available:", gc.mem_free(), "bytes")
+    print(f"Memory currently in use: {(gc.mem_alloc()/1e3):.1f} kB")
+    print(f"Memory currently available: {(gc.mem_free()/1e3):.1f} kB")
 
 def blink(times, delay):
     lap = 0
@@ -78,3 +78,4 @@ if __name__ == '__main__':
 # to run:
 # ampy --port /dev/ttyUSB0 run main.py
 # or, as main.py is the default file, just press EN button on ESP32
+# it's possible to access the Python REPL with PuTTY at Serial 115200 bauds
