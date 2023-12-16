@@ -4,12 +4,17 @@ import network
 import env
 import requests
 import json
+import gc
 
 # ------------------ CONSTANTS ------------------
 
 builtin_led = Pin(2, Pin.OUT)
 
 # ------------------ UTIL FUNCTIONS ------------------
+
+def status():
+    print("Memory currently in use:", gc.mem_alloc(), "bytes")
+    print("Memory currently available:", gc.mem_free(), "bytes")
 
 def blink(times, delay):
     lap = 0
@@ -65,3 +70,11 @@ if __name__ == '__main__':
 
 # 1 blink: error
 # 3 blinks: success
+
+# to upload:
+# ampy --port /dev/ttyUSB0 put main.py
+# ampy --port /dev/ttyUSB0 put env.py
+
+# to run:
+# ampy --port /dev/ttyUSB0 run main.py
+# or, as main.py is the default file, just press EN button on ESP32
