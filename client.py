@@ -37,6 +37,7 @@ def main():
         print("Sending the audio to the API...")
         # Send the audio file to the API
         with open(temp_file.name, 'rb') as audio:
+            #response = requests.post(f"http://{env.SERVER_HOST}:{env.SERVER_PORT}/process-audio?hf=1", files={'audio': audio})
             response = requests.post(f"http://{env.SERVER_HOST}:{env.SERVER_PORT}/process-audio", files={'audio': audio})
 
         # Check if the request was successful

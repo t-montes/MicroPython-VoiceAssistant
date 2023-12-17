@@ -12,10 +12,13 @@ def transcribe_audio(audio_path):
     result = model.transcribe(audio_path)
     language = result['language']
     transcript = result['text']
+    print(f"\tTranscript [{language}]: {transcript}")
     return transcript, language
 
 def generate_response(req):
-    return req
+    res = req
+    print(f"\tGenerated Response: {res}")
+    return res
 
 def generate_response_hf(req):
     if req == "":
@@ -34,9 +37,11 @@ def generate_response_hf(req):
         json=payload
     )
     if response.status_code == 200:
-        return response.json()[0]['generated_text']
+        res = response.json()[0]['generated_text']
     else:
-        return f"Error in API response: {response.status_code}: {response.json()['error']}"
+        res = f"Error in API response: {response.status_code}: {response.json()['error']}"
+    print(f"\tGenerated Response: {res}")
+    return res
 
 def convert_to_speech(text, language):
     tts = gTTS(text=text, lang=language)
@@ -47,23 +52,16 @@ def convert_to_speech(text, language):
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
     audio_file = request.files['audio']
+    use_huggingface = request.args.get('hf', default='0') == '1'
     audio_format = audio_file.filename.split('.')[-1]
 
     print("\tAudio of length", request.content_length, "received")
 
-    # Save the received audio to a temporary file
     with tempfile.NamedTemporaryFile(suffix=f".{audio_format}", delete=False) as temp_audio:
         audio_file.save(temp_audio.name)
 
-        # 1. TRANSCRIBE
         transcript, detected_language = transcribe_audio(temp_audio.name)
-        print(f"\tTranscript [{detected_language}]: {transcript}")
-
-        # 2. GENERATE RESPONSE
-        response_text = generate_response(transcript)
-        print(f"\tGenerated Response: {response_text}")
-
-        # 3. CONVERT TO SPEECH
+        response_text = (generate_response_hf if use_huggingface else generate_response)(transcript)
         tts_output_path = convert_to_speech(response_text, detected_language)
 
         # Read the file and prepare the response
@@ -73,6 +71,14 @@ def process_audio():
     response = Response(return_data, mimetype="audio/mpeg")
     response.headers.set('Content-Disposition', 'attachment', filename='processed_audio.mp3')
     return response
+
+@app.route('/test', methods=['POST'])
+def test():
+    reponse = {
+        "status": "OK",
+        "message": "Test successful"
+    }
+    return reponse
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=env.SERVER_PORT, debug=True)
