@@ -4,6 +4,7 @@ import tempfile
 import numpy as np
 from scipy.io.wavfile import write
 import pygame
+import env
 
 # Record Audio
 def record_audio(duration=5, fs=44100):
@@ -36,7 +37,7 @@ def main():
         print("Sending the audio to the API...")
         # Send the audio file to the API
         with open(temp_file.name, 'rb') as audio:
-            response = requests.post("http://localhost:5000/process-audio", files={'audio': audio})
+            response = requests.post(f"http://{env.SERVER_HOST}:{env.SERVER_PORT}/process-audio", files={'audio': audio})
 
         # Check if the request was successful
         if response.status_code == 200:

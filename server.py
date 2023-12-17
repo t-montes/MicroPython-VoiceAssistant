@@ -75,4 +75,4 @@ def process_audio():
     return response
 
 if __name__ == "__main__":
-    app.run(host=env.SERVER_HOST, port=env.SERVER_PORT, debug=True)
+    app.run(host='0.0.0.0', port=env.SERVER_PORT, debug=True)
