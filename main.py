@@ -60,6 +60,7 @@ def test_post():
 # ------------------ MAIN ------------------
 
 def main():
+    blink(5, 0.1) # hello
     wlan, ip = connect()
     test_post()
 
