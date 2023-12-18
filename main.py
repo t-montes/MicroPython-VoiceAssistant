@@ -1,8 +1,8 @@
 import env
 from machine import Pin
-from time import sleep
+from time import sleep, time
 from network import WLAN, STA_IF
-from requests import post
+from requests import get, post
 from gc import mem_alloc, mem_free
 from os import urandom
 from ubinascii import hexlify
@@ -30,7 +30,8 @@ def connect():
     wlan = WLAN(STA_IF)
     wlan.active(True)
 
-    while True:
+    tries = 0
+    while (tries := tries + 1) <= 3:
         print("Connecting to Wi-Fi", env.WIFI_SSID, "...")
         try:
             wlan.connect(env.WIFI_SSID, env.WIFI_PASSWORD)
@@ -43,37 +44,66 @@ def connect():
         except Exception as e:
             print("Error connecting:", e)
             blink(1, 1)
+    if tries > 3:
+        raise Exception("Error connecting to Wi-Fi")
+
+def test_get():
+    start_time = time()
+    url = f'http://{env.SERVER_HOST}:{env.SERVER_PORT}/test-get'
+    print("Testing HTTP GET...")
+    response = get(url)
+    try:
+        assert (response.status_code == 200), f"Error in test GET [{response.status_code}]: {response.text}"
+        print(f"Test GET (first access) successful in: {time() - start_time:.2f} s")
+        blink(3, 0.2)
+    except Exception as e:
+        print(e)
+        blink(1, 1)
 
 def test_post():
-    print("Testing HTTP POST...")
+    start_time = time()
+    # create sample audio file
+    with open('sample-request.wav', 'wb') as f:
+        f.write(b'this is a sample of what the system would receive from the microphone')
+    
     url = f'http://{env.SERVER_HOST}:{env.SERVER_PORT}/test'
-
     boundary = '----WebKitFormBoundary' + hexlify(urandom(16)).decode()
     headers = {'Content-Type': 'multipart/form-data; boundary=%s' % boundary}
 
-    with open('audio.wav', 'wb') as f:
-        f.write(b'sample audio')
-
     body = ('--%s\r\n' % boundary +
-            'Content-Disposition: form-data; name="audio"; filename="audio.wav"\r\n' +
+            'Content-Disposition: form-data; name="audio"; filename="sample-request.wav"\r\n' +
             'Content-Type: audio/wav\r\n\r\n').encode('utf-8')
-    with open('audio.wav', 'rb') as f:
+    with open('sample-request.wav', 'rb') as f:
         body += f.read()
     body += ('\r\n--%s--\r\n' % boundary).encode('utf-8')
 
+    print("Testing HTTP POST...")
     response = post(url, headers=headers, data=body)
-    assert 200 <= response.status_code < 300, f"Error in HTTP POST [{response.status_code}]: {response.text}"
-    print(response.json())
-    blink(3, 0.2)
+    
+    try:
+        assert (response.status_code == 200), f"Error in test POST [{response.status_code}]: {response.text}"
+        #assert (response.content == b'sample audio'), f"Error in test POST: response content is not the same as the request content"
+
+        with open('sample-response.wav', 'wb') as f:
+            f.write(response.content)
+
+        print(f"Test POST successful in: {time() - start_time:.2f} s")
+        blink(3, 0.2)
+    except Exception as e:
+        print(e)
+        blink(1, 1)
 
 # ------------------ MAIN ------------------
 
 def main():
     blink(5, 0.1) # hello
     wlan, ip = connect()
+    test_get()
     test_post()
 
-    # TODO: speech to text to receive voice commands and print them
+    # TODO: record audio
+    # TODO: send audio to server
+    # TODO: speak response
 
 if __name__ == '__main__':
     main()

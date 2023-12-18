@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, send_file
 import whisper
 from gtts import gTTS
 import tempfile
@@ -49,6 +49,7 @@ def convert_to_speech(text, language):
         tts.save(temp_tts_file.name)
         return temp_tts_file.name
 
+""" Receives an audio file and returns a processed transcript audio file """
 @app.route('/process-audio', methods=['POST'])
 def process_audio():
     audio_file = request.files['audio']
@@ -64,28 +65,45 @@ def process_audio():
         response_text = (generate_response_hf if use_huggingface else generate_response)(transcript)
         tts_output_path = convert_to_speech(response_text, detected_language)
 
-        # Read the file and prepare the response
-        with open(tts_output_path, 'rb') as f:
-            return_data = f.read()
+    return send_file(tts_output_path, as_attachment=True, download_name='processed_audio.mp3', mimetype='audio/mpeg')
 
-    response = Response(return_data, mimetype="audio/mpeg")
-    response.headers.set('Content-Disposition', 'attachment', filename='processed_audio.mp3')
-    return response
+    #response = Response(return_data, mimetype="audio/mpeg")
+    #response.headers.set('Content-Disposition', 'attachment', filename='processed_audio.mp3')
+    #return response
 
+""" Tests that receives a TEXT wav file and returns an AUDIO wav file """
 @app.route('/test', methods=['POST'])
 def test():
     audio_file = request.files['audio']
-    audio_format = audio_file.filename.split('.')[-1]
-    # decode the audio as text in the variable message
-    # decode:
     message = audio_file.read()
-    message = message.decode('utf-8')
 
-    response = {
-        "status": "OK" if request.files else "ERROR",
-        "message": message
-    }
-    return response
+    # Send the 'message' in an attached file with the same bytes message
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+        audio_text = message.decode('utf-8')
+        print("Decoded:", audio_text)
+        tts = gTTS(text=audio_text, lang='en')
+        tts.save(temp_file.name)
+        temp_file_path = temp_file.name
+
+    return send_file(temp_file_path, as_attachment=True, download_name='response.wav', mimetype='audio/wav')
+
+""" Tests that receives and returns the same WAV file """
+@app.route('/test2', methods=['POST'])
+def test2():
+    audio_file = request.files['audio']
+    message = audio_file.read()
+
+    # Send the 'message' in an attached file with the same bytes message
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+        print("Decoded:", message.decode('utf-8'))
+        temp_file.write(message)
+        temp_file_path = temp_file.name
+
+    return send_file(temp_file_path, as_attachment=True, download_name='response.wav', mimetype='audio/wav')
+
+@app.route('/test-get', methods=['GET'])
+def test_get():
+    return "OK"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=env.SERVER_PORT, debug=True)
