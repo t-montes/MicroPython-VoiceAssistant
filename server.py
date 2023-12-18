@@ -74,11 +74,18 @@ def process_audio():
 
 @app.route('/test', methods=['POST'])
 def test():
-    reponse = {
-        "status": "OK",
-        "message": "Test successful"
+    audio_file = request.files['audio']
+    audio_format = audio_file.filename.split('.')[-1]
+    # decode the audio as text in the variable message
+    # decode:
+    message = audio_file.read()
+    message = message.decode('utf-8')
+
+    response = {
+        "status": "OK" if request.files else "ERROR",
+        "message": message
     }
-    return reponse
+    return response
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=env.SERVER_PORT, debug=True)

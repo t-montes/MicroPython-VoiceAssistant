@@ -1,10 +1,11 @@
-from machine import Pin
-import time
-import network
 import env
-import requests
-import json
-import gc
+from machine import Pin
+from time import sleep
+from network import WLAN, STA_IF
+from requests import post
+from gc import mem_alloc, mem_free
+from os import urandom
+from ubinascii import hexlify
 
 # ------------------ CONSTANTS ------------------
 
@@ -13,20 +14,20 @@ builtin_led = Pin(2, Pin.OUT)
 # ------------------ UTIL FUNCTIONS ------------------
 
 def status():
-    print(f"Memory currently in use: {(gc.mem_alloc()/1e3):.1f} kB")
-    print(f"Memory currently available: {(gc.mem_free()/1e3):.1f} kB")
+    print(f"Memory currently in use: {(mem_alloc()/1e3):.1f} kB")
+    print(f"Memory currently available: {(mem_free()/1e3):.1f} kB")
 
 def blink(times, delay):
     lap = 0
     while lap < times:
         builtin_led.on()
-        time.sleep(delay / 2)
+        sleep(delay / 2)
         builtin_led.off()
-        time.sleep(delay / 2)
+        sleep(delay / 2)
         lap += 1
 
 def connect():
-    wlan = network.WLAN(network.STA_IF)
+    wlan = WLAN(STA_IF)
     wlan.active(True)
 
     while True:
@@ -45,15 +46,23 @@ def connect():
 
 def test_post():
     print("Testing HTTP POST...")
-    url = 'https://jsonplaceholder.typicode.com/posts'
-    data = {
-        'title': 'test',
-        'working': 'yes',
-    }
-    json_data = json.dumps(data)
-    headers = {'Content-type': 'application/json; charset=UTF-8'}
-    response = requests.post(url, data=json_data, headers=headers)
-    assert response.status_code == 201, "Error in HTTP POST"
+    url = f'http://{env.SERVER_HOST}:{env.SERVER_PORT}/test'
+
+    boundary = '----WebKitFormBoundary' + hexlify(urandom(16)).decode()
+    headers = {'Content-Type': 'multipart/form-data; boundary=%s' % boundary}
+
+    with open('audio.wav', 'wb') as f:
+        f.write(b'sample audio')
+
+    body = ('--%s\r\n' % boundary +
+            'Content-Disposition: form-data; name="audio"; filename="audio.wav"\r\n' +
+            'Content-Type: audio/wav\r\n\r\n').encode('utf-8')
+    with open('audio.wav', 'rb') as f:
+        body += f.read()
+    body += ('\r\n--%s--\r\n' % boundary).encode('utf-8')
+
+    response = post(url, headers=headers, data=body)
+    assert 200 <= response.status_code < 300, f"Error in HTTP POST [{response.status_code}]: {response.text}"
     print(response.json())
     blink(3, 0.2)
 
